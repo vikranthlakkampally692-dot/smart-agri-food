@@ -3,10 +3,6 @@ require("dotenv").config();
 const http = require("node:http");
 const { MongoClient, ObjectId } = require("mongodb");
 
-// ======================================================
-// SERVER + MONGODB CONFIGURATION
-// ======================================================
-
 const hostname = "0.0.0.0";
 const port = process.env.PORT || 3000;
 
@@ -23,55 +19,61 @@ let db;
 let farmersCollection;
 let marketCollection;
 
-// ======================================================
-// DEFAULT MARKET DATA
-// This is inserted into MongoDB only if collection is empty
-// ======================================================
+/* =========================================================
+   DEFAULT MARKET DATA
+========================================================= */
 
-const defaultMarketPrices = [
+const defaultMarketData = [
     {
         crop: "Rice",
         market: "Hyderabad",
-        price: 2300,
-        change: "+2.4%"
+        price: 3200,
+        unit: "quintal",
+        trend: "Stable"
     },
     {
         crop: "Wheat",
         market: "Hyderabad",
-        price: 2425,
-        change: "+1.2%"
-    },
-    {
-        crop: "Cotton",
-        market: "Warangal",
-        price: 7500,
-        change: "+3.8%"
+        price: 2800,
+        unit: "quintal",
+        trend: "Up"
     },
     {
         crop: "Tomato",
         market: "Hyderabad",
-        price: 2800,
-        change: "-1.5%"
+        price: 2400,
+        unit: "quintal",
+        trend: "Down"
+    },
+    {
+        crop: "Cotton",
+        market: "Warangal",
+        price: 7200,
+        unit: "quintal",
+        trend: "Up"
     },
     {
         crop: "Maize",
         market: "Nizamabad",
-        price: 2100,
-        change: "+2.1%"
+        price: 2300,
+        unit: "quintal",
+        trend: "Stable"
     },
     {
-        crop: "Groundnut",
-        market: "Mahbubnagar",
-        price: 6500,
-        change: "+1.8%"
+        crop: "Chilli",
+        market: "Guntur",
+        price: 10500,
+        unit: "quintal",
+        trend: "Up"
     }
 ];
 
-// ======================================================
-// WEBSITE HTML
-// ======================================================
+/* =========================================================
+   HTML PAGE
+========================================================= */
 
-const html = `<!DOCTYPE html>
+const html = `
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -81,6 +83,11 @@ const html = `<!DOCTYPE html>
 <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
+>
+
+<meta
+    name="description"
+    content="Smart Agri-Food Platform for farmers"
 >
 
 <title>Smart Agri-Food Platform</title>
@@ -98,271 +105,391 @@ html {
 }
 
 body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f4f8f3;
-    color: #1d2b20;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f5f8f2;
+    color: #26352a;
     line-height: 1.6;
 }
 
-/* ================= HEADER ================= */
+/* =========================================================
+   GLOBAL
+========================================================= */
+
+a {
+    color: inherit;
+}
+
+button,
+input,
+select {
+    font-family: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+section {
+    scroll-margin-top: 90px;
+}
+
+.container {
+    width: min(1150px, 92%);
+    margin: auto;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
 
 header {
-    background: #126b35;
-    color: white;
-    padding: 16px 6%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     position: sticky;
     top: 0;
     z-index: 1000;
-    box-shadow: 0 3px 12px #0002;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.navbar {
+    min-height: 70px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
 }
 
 .logo {
-    font-size: 24px;
-    font-weight: bold;
+    text-decoration: none;
+
+    font-size: 22px;
+    font-weight: 800;
+
+    color: #1f6f35;
+
+    white-space: nowrap;
 }
 
 .logo span {
-    color: #ffd447;
+    color: #ef8f22;
 }
 
 nav {
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 24px;
+
     flex-wrap: wrap;
 }
 
 nav a {
-    color: white;
     text-decoration: none;
-    font-size: 14px;
-    font-weight: bold;
-}
 
-/* ================= HERO ================= */
+    color: #344239;
 
-.hero {
-    min-height: 620px;
-
-    background:
-        linear-gradient(#07471ccc, #07471ccc),
-        linear-gradient(135deg, #2e8b57, #8fbc5a);
-
-    display: flex;
-    align-items: center;
-
-    padding: 80px 7%;
-
-    color: white;
-}
-
-.hero-content {
-    max-width: 800px;
-}
-
-.badge {
-    display: inline-block;
-
-    background: #ffffff26;
-
-    border: 1px solid #ffffff4d;
-
-    padding: 8px 15px;
-
-    border-radius: 30px;
-
-    margin-bottom: 20px;
-}
-
-.hero h1 {
-    font-size: 58px;
-    line-height: 1.1;
-    margin-bottom: 22px;
-}
-
-.hero h1 span {
-    color: #ffd447;
-}
-
-.hero p {
-    font-size: 19px;
-    max-width: 700px;
-    margin-bottom: 30px;
-    color: #edf8ed;
-}
-
-.hero-buttons {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-}
-
-/* ================= BUTTONS ================= */
-
-.btn {
-    border: none;
-    border-radius: 8px;
-
-    padding: 13px 22px;
-
-    font-size: 15px;
-    font-weight: bold;
-
-    cursor: pointer;
+    font-weight: 600;
 
     transition: 0.2s;
 }
 
-.btn-primary {
-    background: #ffd447;
-    color: #193019;
+nav a:hover {
+    color: #218739;
 }
 
-.btn-secondary {
-    background: transparent;
-    color: white;
-    border: 2px solid white;
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+    min-height: 620px;
+
+    display: flex;
+    align-items: center;
+
+    background:
+        linear-gradient(
+            120deg,
+            #eaf7e8,
+            #ffffff
+        );
 }
 
-.btn-green {
-    background: #126b35;
-    color: white;
+.hero-content {
+    display: grid;
+
+    grid-template-columns:
+        1.2fr
+        0.8fr;
+
+    align-items: center;
+
+    gap: 50px;
 }
 
-.btn-danger {
-    background: #b83232;
-    color: white;
+.hero h1 {
+    font-size: clamp(40px, 6vw, 68px);
+
+    line-height: 1.05;
+
+    color: #1f6330;
+
+    margin-bottom: 22px;
+}
+
+.hero h1 span {
+    color: #e98a1b;
+}
+
+.hero p {
+    font-size: 19px;
+
+    color: #5c695f;
+
+    max-width: 650px;
+
+    margin-bottom: 30px;
+}
+
+.hero-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.btn {
+    display: inline-block;
+
+    border: none;
+
+    padding: 13px 21px;
+
+    border-radius: 9px;
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+    text-decoration: none;
+
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s,
+        background 0.2s;
 }
 
 .btn:hover {
     transform: translateY(-2px);
-    opacity: 0.92;
+
+    box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.12);
 }
 
-/* ================= SECTIONS ================= */
-
-section {
-    padding: 75px 7%;
+.btn-primary {
+    background: #218739;
+    color: white;
 }
 
-.section-header {
+.btn-primary:hover {
+    background: #176b2c;
+}
+
+.btn-secondary {
+    background: #f29a2e;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #db7d12;
+}
+
+.btn-danger {
+    background: #d9534f;
+    color: white;
+}
+
+.btn-small {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+/* Hero visual */
+
+.hero-card {
+    background: white;
+
+    border-radius: 25px;
+
+    padding: 35px;
+
     text-align: center;
 
-    max-width: 750px;
-
-    margin: 0 auto 45px;
+    box-shadow:
+        0 15px 45px rgba(39, 83, 44, 0.12);
 }
 
-.section-header h2 {
-    color: #126b35;
+.hero-icon {
+    font-size: 100px;
+
+    margin-bottom: 15px;
+}
+
+.hero-card h3 {
+    color: #286b35;
+
+    font-size: 25px;
+
+    margin-bottom: 10px;
+}
+
+/* =========================================================
+   SECTION
+========================================================= */
+
+.section {
+    padding: 80px 0;
+}
+
+.section-title {
+    text-align: center;
+
+    margin-bottom: 45px;
+}
+
+.section-title h2 {
     font-size: 36px;
-    margin-bottom: 12px;
+
+    color: #245d2d;
+
+    margin-bottom: 10px;
 }
 
-.section-header p {
-    color: #647064;
+.section-title p {
+    color: #68736b;
+
+    max-width: 700px;
+
+    margin: auto;
 }
 
-/* ================= FEATURES ================= */
+/* =========================================================
+   FEATURE CARDS
+========================================================= */
 
-.features,
-.stats,
-.disease-cards,
-.marketplace {
+.features-grid {
     display: grid;
 
     grid-template-columns:
-        repeat(auto-fit, minmax(230px, 1fr));
+        repeat(3, 1fr);
 
     gap: 22px;
 }
 
-.feature-card,
-.stat-card,
-.disease-card,
-.product-card,
-.form-card,
-.registration-box {
+.card {
     background: white;
 
     padding: 28px;
 
-    border-radius: 16px;
+    border-radius: 15px;
 
-    box-shadow: 0 5px 20px #00000012;
+    box-shadow:
+        0 5px 20px rgba(0, 0, 0, 0.06);
+
+    border: 1px solid #edf1ec;
+}
+
+.feature-card {
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s;
 }
 
 .feature-card:hover {
     transform: translateY(-5px);
+
+    box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.1);
 }
 
 .feature-icon {
-    width: 60px;
-    height: 60px;
+    font-size: 42px;
 
-    border-radius: 15px;
-
-    background: #e5f4e7;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 30px;
-
-    margin-bottom: 18px;
+    margin-bottom: 12px;
 }
 
-.feature-card h3,
-.disease-card h3,
-.product-card h3 {
-    color: #126b35;
+.card h3 {
+    color: #285f31;
+
     margin-bottom: 10px;
 }
 
-.feature-card p,
-.disease-card p {
-    color: #657065;
+.card p {
+    color: #69746c;
 }
 
-/* ================= DASHBOARD ================= */
+/* =========================================================
+   DASHBOARD
+========================================================= */
 
 .dashboard {
-    background: #e9f5e8;
+    background: #edf7eb;
 }
 
-.stat-card {
-    text-align: center;
-}
-
-.stat-icon {
-    font-size: 30px;
-}
-
-.stat-number {
-    font-size: 34px;
-
-    font-weight: bold;
-
-    color: #126b35;
-}
-
-.stat-label {
-    color: #697369;
-}
-
-/* ================= FORMS ================= */
-
-.crop-area {
+.dashboard-grid {
     display: grid;
 
     grid-template-columns:
-        repeat(auto-fit, minmax(300px, 1fr));
+        repeat(4, 1fr);
 
-    gap: 35px;
+    gap: 18px;
+}
+
+.stat-card {
+    background: white;
+
+    border-radius: 15px;
+
+    padding: 25px;
+
+    text-align: center;
+
+    box-shadow:
+        0 5px 18px rgba(0, 0, 0, 0.06);
+}
+
+.stat-icon {
+    font-size: 35px;
+
+    margin-bottom: 8px;
+}
+
+.stat-number {
+    font-size: 30px;
+
+    font-weight: 800;
+
+    color: #227536;
+}
+
+/* =========================================================
+   CROP
+========================================================= */
+
+.crop-grid {
+    display: grid;
+
+    grid-template-columns:
+        1fr
+        1fr;
+
+    gap: 25px;
 }
 
 .form-group {
@@ -372,41 +499,48 @@ section {
 .form-group label {
     display: block;
 
-    font-weight: bold;
-
     margin-bottom: 7px;
+
+    font-weight: 700;
+
+    color: #3e4d42;
 }
 
 input,
 select {
     width: 100%;
 
-    padding: 13px;
+    padding: 12px 14px;
 
-    border: 1px solid #ccd7cc;
+    border: 1px solid #ccd6cd;
 
-    border-radius: 7px;
-
-    font-size: 15px;
+    border-radius: 8px;
 
     outline: none;
+
+    background: white;
+
+    font-size: 15px;
 }
 
 input:focus,
 select:focus {
-    border-color: #126b35;
+    border-color: #298c3b;
+
+    box-shadow:
+        0 0 0 3px rgba(41, 140, 59, 0.1);
 }
 
 .result-box {
-    background: #eef8ee;
-
-    border: 1px solid #cce4ce;
-
-    padding: 22px;
-
-    border-radius: 12px;
-
     margin-top: 20px;
+
+    padding: 20px;
+
+    background: #eef9ec;
+
+    border-left: 5px solid #2d8c3e;
+
+    border-radius: 8px;
 
     display: none;
 }
@@ -415,130 +549,211 @@ select:focus {
     display: block;
 }
 
-.result-box h3 {
-    color: #126b35;
-
-    margin-bottom: 8px;
-}
-
-/* ================= WEATHER ================= */
-
-.weather-section {
-    background: #f0f7f1;
-}
+/* =========================================================
+   WEATHER
+========================================================= */
 
 .weather-card {
-    max-width: 900px;
-
-    margin: auto;
-
     background:
-        linear-gradient(135deg, #176d38, #4e9c63);
+        linear-gradient(
+            135deg,
+            #e7f3ff,
+            #f7fbff
+        );
 
-    color: white;
+    border-radius: 18px;
 
-    border-radius: 20px;
+    padding: 35px;
 
-    padding: 40px;
-
-    box-shadow: 0 8px 30px #0002;
-}
-
-.weather-top {
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    gap: 20px;
-}
-
-.weather-temperature {
-    font-size: 64px;
-
-    font-weight: bold;
-}
-
-.weather-icon {
-    font-size: 70px;
-}
-
-.weather-details {
     display: grid;
 
     grid-template-columns:
-        repeat(auto-fit, minmax(150px, 1fr));
+        1fr
+        1fr;
+
+    gap: 30px;
+
+    align-items: center;
+}
+
+.weather-main {
+    text-align: center;
+}
+
+.weather-icon {
+    font-size: 80px;
+}
+
+.temperature {
+    font-size: 55px;
+
+    font-weight: 800;
+
+    color: #25618a;
+}
+
+.weather-info {
+    display: grid;
+
+    grid-template-columns:
+        1fr
+        1fr;
 
     gap: 15px;
-
-    margin-top: 30px;
 }
 
-.weather-detail {
-    background: #ffffff22;
-
-    padding: 18px;
+.weather-item {
+    background: white;
 
     border-radius: 10px;
+
+    padding: 15px;
+
+    text-align: center;
 }
 
-.weather-detail strong {
-    display: block;
-
-    font-size: 20px;
-}
-
-/* ================= TABLE ================= */
+/* =========================================================
+   MARKET
+========================================================= */
 
 .table-wrapper {
     overflow-x: auto;
 
     background: white;
 
-    border-radius: 15px;
+    border-radius: 14px;
 
-    box-shadow: 0 5px 20px #00000012;
+    box-shadow:
+        0 5px 20px rgba(0, 0, 0, 0.06);
 }
 
 table {
     width: 100%;
 
     border-collapse: collapse;
+
+    min-width: 650px;
 }
 
-th {
-    background: #126b35;
-
-    color: white;
-
-    padding: 15px;
-
-    text-align: left;
-}
-
+th,
 td {
     padding: 15px;
 
-    border-bottom: 1px solid #e5e9e5;
+    text-align: left;
+
+    border-bottom: 1px solid #edf0ed;
 }
 
-.positive {
-    color: #16803b;
+th {
+    background: #eaf5e8;
 
-    font-weight: bold;
+    color: #245e2e;
 }
 
-.negative {
-    color: #d33d3d;
-
-    font-weight: bold;
+td {
+    color: #4d5a50;
 }
 
-/* ================= AI ================= */
+.price {
+    font-weight: 800;
 
-.ai-container {
-    max-width: 900px;
+    color: #277c37;
+}
+
+.trend-up {
+    color: #18883a;
+
+    font-weight: 700;
+}
+
+.trend-down {
+    color: #d94c3d;
+
+    font-weight: 700;
+}
+
+.trend-stable {
+    color: #d38718;
+
+    font-weight: 700;
+}
+
+/* =========================================================
+   DISEASE
+========================================================= */
+
+.disease-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 20px;
+}
+
+.disease-card {
+    border-top: 5px solid #4b923f;
+}
+
+.disease-card h3 {
+    margin-bottom: 12px;
+}
+
+/* =========================================================
+   MARKETPLACE
+========================================================= */
+
+.marketplace {
+    background: #fff8ed;
+}
+
+.marketplace-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 20px;
+}
+
+.product-card {
+    background: white;
+
+    border-radius: 15px;
+
+    padding: 25px;
+
+    text-align: center;
+
+    box-shadow:
+        0 5px 18px rgba(0, 0, 0, 0.07);
+}
+
+.product-icon {
+    font-size: 55px;
+
+    margin-bottom: 12px;
+}
+
+.product-card .price {
+    margin: 12px 0;
+}
+
+/* =========================================================
+   AI ASSISTANT
+========================================================= */
+
+.assistant {
+    background:
+        linear-gradient(
+            135deg,
+            #eef8eb,
+            #f8fcf7
+        );
+}
+
+.chat-box {
+    max-width: 850px;
 
     margin: auto;
 
@@ -546,45 +761,42 @@ td {
 
     border-radius: 18px;
 
-    box-shadow: 0 5px 20px #00000014;
+    padding: 25px;
 
-    overflow: hidden;
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
-.ai-header {
-    background: #126b35;
+.chat-messages {
+    min-height: 180px;
 
-    color: white;
-
-    padding: 20px;
-}
-
-.chat-box {
-    height: 330px;
+    max-height: 350px;
 
     overflow-y: auto;
 
-    padding: 25px;
+    padding: 10px;
 
-    background: #f5f9f5;
+    margin-bottom: 15px;
 }
 
 .message {
-    max-width: 80%;
+    padding: 12px 15px;
 
-    padding: 12px 16px;
+    border-radius: 10px;
 
-    border-radius: 12px;
+    margin-bottom: 10px;
 
-    margin-bottom: 12px;
+    max-width: 85%;
 }
 
-.message-bot {
-    background: #dcefdc;
+.message.ai {
+    background: #eef8eb;
+
+    color: #34523a;
 }
 
-.message-user {
-    background: #126b35;
+.message.user {
+    background: #277b37;
 
     color: white;
 
@@ -595,120 +807,260 @@ td {
     display: flex;
 
     gap: 10px;
-
-    padding: 18px;
-
-    border-top: 1px solid #e1e7e1;
 }
 
 .chat-input input {
     flex: 1;
 }
 
-/* ================= MARKETPLACE ================= */
+/* =========================================================
+   REGISTRATION
+========================================================= */
 
-.product-image {
-    font-size: 50px;
+.register-section {
+    background: #f2f8f0;
+}
 
-    background: #edf7ed;
+.register-grid {
+    display: grid;
 
-    padding: 25px;
+    grid-template-columns:
+        0.8fr
+        1.2fr;
 
-    border-radius: 12px;
+    gap: 25px;
 
-    text-align: center;
+    align-items: start;
+}
+
+.registration-info {
+    background: #245f2d;
+
+    color: white;
+
+    border-radius: 16px;
+
+    padding: 35px;
+}
+
+.registration-info h3 {
+    font-size: 28px;
 
     margin-bottom: 15px;
 }
 
-.product-price {
-    color: #126b35;
+.registration-info ul {
+    list-style: none;
 
-    font-size: 20px;
-
-    font-weight: bold;
-
-    margin: 8px 0 15px;
+    margin-top: 20px;
 }
 
-/* ================= REGISTRATION ================= */
-
-.registration {
-    background: #e9f5e8;
+.registration-info li {
+    padding: 9px 0;
 }
 
-.farmer-list {
-    margin-top: 40px;
+.registration-form {
+    background: white;
+
+    border-radius: 16px;
+
+    padding: 30px;
+
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.07);
 }
 
-/* ================= FOOTER ================= */
+.form-row {
+    display: grid;
 
-footer {
-    background: #0d3d20;
+    grid-template-columns:
+        1fr
+        1fr;
 
-    color: white;
-
-    text-align: center;
-
-    padding: 45px 7%;
+    gap: 15px;
 }
 
-footer p {
-    color: #c8d9ca;
+/* =========================================================
+   FARMER TABLE
+========================================================= */
+
+.farmers-list {
+    margin-top: 35px;
 }
 
-/* ================= NOTIFICATION ================= */
+.farmer-count {
+    margin-bottom: 15px;
 
-.notification {
+    font-weight: 700;
+
+    color: #397442;
+}
+
+/* =========================================================
+   NOTIFICATION
+========================================================= */
+
+#notification {
     position: fixed;
 
-    right: 25px;
+    right: 20px;
 
-    bottom: 25px;
+    bottom: 20px;
 
-    background: #126b35;
+    z-index: 9999;
+
+    max-width: 360px;
+
+    background: #245f2d;
 
     color: white;
 
-    padding: 15px 22px;
+    padding: 15px 20px;
 
     border-radius: 10px;
 
-    box-shadow: 0 5px 20px #0003;
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.2);
 
-    display: none;
+    transform: translateY(150px);
 
-    z-index: 2000;
+    opacity: 0;
+
+    transition: 0.3s;
 }
 
-.notification.show {
-    display: block;
+#notification.show {
+    transform: translateY(0);
+
+    opacity: 1;
 }
 
-/* ================= MOBILE ================= */
+/* =========================================================
+   FOOTER
+========================================================= */
 
-@media (max-width: 800px) {
+footer {
+    background: #1e3e24;
 
-    header {
+    color: #dce8de;
+
+    padding: 45px 0 25px;
+}
+
+.footer-grid {
+    display: grid;
+
+    grid-template-columns:
+        1.5fr
+        1fr
+        1fr;
+
+    gap: 30px;
+
+    margin-bottom: 30px;
+}
+
+footer h3,
+footer h4 {
+    color: white;
+
+    margin-bottom: 12px;
+}
+
+footer ul {
+    list-style: none;
+}
+
+footer li {
+    padding: 5px 0;
+}
+
+.footer-bottom {
+    border-top: 1px solid rgba(255,255,255,0.15);
+
+    padding-top: 20px;
+
+    text-align: center;
+
+    color: #afc0b2;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 900px) {
+
+    .hero-content,
+    .crop-grid,
+    .weather-card,
+    .register-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .features-grid,
+    .disease-grid,
+    .marketplace-grid {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+    .dashboard-grid {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .navbar {
         flex-direction: column;
 
-        gap: 12px;
+        padding: 15px 0;
     }
 
-    .hero h1 {
-        font-size: 40px;
+    nav {
+        justify-content: center;
     }
+}
+
+@media (max-width: 600px) {
 
     .hero {
-        min-height: 540px;
+        padding: 70px 0;
     }
 
-    .weather-top {
-        flex-direction: column;
+    .section {
+        padding: 55px 0;
+    }
 
+    .features-grid,
+    .disease-grid,
+    .marketplace-grid,
+    .dashboard-grid,
+    .footer-grid,
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    nav {
+        gap: 12px;
+
+        font-size: 14px;
+    }
+
+    .hero-buttons {
+        flex-direction: column;
+    }
+
+    .hero-buttons .btn {
         text-align: center;
     }
 
+    .chat-input {
+        flex-direction: column;
+    }
 }
 
 </style>
@@ -717,69 +1069,118 @@ footer p {
 
 <body>
 
-<!-- ==================================================
+<!-- ======================================================
      HEADER
-================================================== -->
+====================================================== -->
 
 <header>
 
-<div class="logo">
+<div class="container navbar">
+
+<a href="#home" class="logo">
 🌾 Smart <span>Agri-Food</span>
-</div>
+</a>
 
 <nav>
 
 <a href="#home">Home</a>
+
 <a href="#features">Features</a>
+
 <a href="#crops">Crops</a>
+
 <a href="#weather">Weather</a>
+
 <a href="#market">Market</a>
+
 <a href="#assistant">AI</a>
+
 <a href="#register">Register</a>
 
 </nav>
 
+</div>
+
 </header>
 
 
-<!-- ==================================================
-     HERO
-================================================== -->
+<!-- ======================================================
+     HOME
+====================================================== -->
 
-<section class="hero" id="home">
+<section id="home" class="hero">
 
-<div class="hero-content">
+<div class="container hero-content">
 
-<div class="badge">
-🌱 Digital Agriculture Platform
-</div>
+<div>
 
 <h1>
-Smart Farming for a
-<span>Better Future</span>
+Smart Farming<br>
+for a <span>Better Future</span>
 </h1>
 
 <p>
-Empowering farmers with crop recommendations,
-weather information, market prices, agricultural
-assistance and digital tools — all in one platform.
+A smart digital platform that helps farmers
+make better decisions about crops, weather,
+market prices, disease management and
+agriculture resources.
 </p>
 
 <div class="hero-buttons">
 
-<button
+<!-- IMPORTANT:
+     These are anchors instead of JavaScript buttons.
+     Therefore navigation works even if JavaScript has
+     another problem.
+-->
+
+<a
+    href="#register"
     class="btn btn-primary"
-    onclick="scrollToSection('register')"
 >
 👨‍🌾 Register as Farmer
-</button>
+</a>
 
-<button
+<a
+    href="#features"
     class="btn btn-secondary"
-    onclick="scrollToSection('features')"
 >
 Explore Features
-</button>
+</a>
+
+</div>
+
+</div>
+
+
+<div class="hero-card">
+
+<div class="hero-icon">
+🌱
+</div>
+
+<h3>
+Digital Agriculture
+</h3>
+
+<p>
+Technology + Farming =
+Smarter Decisions
+</p>
+
+<br>
+
+<p>
+📊 Market Data
+</p>
+
+<p>
+🌦️ Weather Information
+</p>
+
+<p>
+🤖 AI Assistance
+</p>
 
 </div>
 
@@ -788,31 +1189,33 @@ Explore Features
 </section>
 
 
-<!-- ==================================================
+<!-- ======================================================
      FEATURES
-================================================== -->
+====================================================== -->
 
-<section id="features">
+<section id="features" class="section">
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
-🌱 Smart Agriculture Features
+Smart Agriculture Features
 </h2>
 
 <p>
-Everything a farmer needs to make better-informed
-agricultural decisions.
+Everything farmers need in one simple platform.
 </p>
 
 </div>
 
-<div class="features">
 
-<div class="feature-card">
+<div class="features-grid">
+
+<div class="card feature-card">
 
 <div class="feature-icon">
-🌱
+🌾
 </div>
 
 <h3>
@@ -821,13 +1224,13 @@ Crop Recommendation
 
 <p>
 Get crop suggestions based on soil,
-season and water availability.
+rainfall and environmental conditions.
 </p>
 
 </div>
 
 
-<div class="feature-card">
+<div class="card feature-card">
 
 <div class="feature-icon">
 🌦️
@@ -838,17 +1241,17 @@ Weather Information
 </h3>
 
 <p>
-View farm weather conditions and basic
-farming recommendations.
+View agriculture-friendly weather
+information for planning farm activities.
 </p>
 
 </div>
 
 
-<div class="feature-card">
+<div class="card feature-card">
 
 <div class="feature-icon">
-💰
+📈
 </div>
 
 <h3>
@@ -856,32 +1259,14 @@ Market Prices
 </h3>
 
 <p>
-Check example commodity prices across
-selected markets.
+Check sample crop market prices
+and understand price trends.
 </p>
 
 </div>
 
 
-<div class="feature-card">
-
-<div class="feature-icon">
-🤖
-</div>
-
-<h3>
-AI Agriculture Assistant
-</h3>
-
-<p>
-Ask questions about soil, crops,
-irrigation and fertilizer.
-</p>
-
-</div>
-
-
-<div class="feature-card">
+<div class="card feature-card">
 
 <div class="feature-icon">
 🦠
@@ -892,27 +1277,47 @@ Disease Guidance
 </h3>
 
 <p>
-Learn about common crop symptoms
-and preventive practices.
+Learn about common crop diseases
+and basic prevention methods.
 </p>
 
 </div>
 
 
-<div class="feature-card">
+<div class="card feature-card">
 
 <div class="feature-icon">
 🛒
 </div>
 
 <h3>
-Agri Marketplace
+Agriculture Marketplace
 </h3>
 
 <p>
-Explore agricultural products and
-connect farming with food markets.
+Explore a simple marketplace concept
+for agriculture products and services.
 </p>
+
+</div>
+
+
+<div class="card feature-card">
+
+<div class="feature-icon">
+🤖
+</div>
+
+<h3>
+AI Agriculture Assistant
+</h3>
+
+<p>
+Ask agriculture-related questions and
+receive helpful guidance.
+</p>
+
+</div>
 
 </div>
 
@@ -921,16 +1326,18 @@ connect farming with food markets.
 </section>
 
 
-<!-- ==================================================
+<!-- ======================================================
      DASHBOARD
-================================================== -->
+====================================================== -->
 
-<section class="dashboard">
+<section class="section dashboard">
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
-📊 Farmer Dashboard
+Agriculture Dashboard
 </h2>
 
 <p>
@@ -939,7 +1346,8 @@ Quick overview of the platform.
 
 </div>
 
-<div class="stats">
+
+<div class="dashboard-grid">
 
 <div class="stat-card">
 
@@ -954,9 +1362,9 @@ Quick overview of the platform.
 0
 </div>
 
-<div class="stat-label">
+<p>
 Registered Farmers
-</div>
+</p>
 
 </div>
 
@@ -968,12 +1376,12 @@ Registered Farmers
 </div>
 
 <div class="stat-number">
-6
+6+
 </div>
 
-<div class="stat-label">
-Supported Crops
-</div>
+<p>
+Market Crops
+</p>
 
 </div>
 
@@ -981,16 +1389,16 @@ Supported Crops
 <div class="stat-card">
 
 <div class="stat-icon">
-💰
+🌦️
 </div>
 
 <div class="stat-number">
-6
+24°
 </div>
 
-<div class="stat-label">
-Market Listings
-</div>
+<p>
+Sample Temperature
+</p>
 
 </div>
 
@@ -1002,11 +1410,13 @@ Market Listings
 </div>
 
 <div class="stat-number">
-24/7
+AI
 </div>
 
-<div class="stat-label">
-Agriculture Assistance
+<p>
+Agriculture Assistant
+</p>
+
 </div>
 
 </div>
@@ -1016,49 +1426,54 @@ Agriculture Assistance
 </section>
 
 
-<!-- ==================================================
-     CROP RECOMMENDATION
-================================================== -->
+<!-- ======================================================
+     CROPS
+====================================================== -->
 
-<section id="crops">
+<section id="crops" class="section">
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
-🌾 Smart Crop Recommendation
+🌱 Crop Recommendation
 </h2>
 
 <p>
-Enter basic farm conditions to receive
-a simple rule-based recommendation.
+Enter your basic farm conditions to get a simple
+crop recommendation.
 </p>
 
 </div>
 
 
-<div class="crop-area">
+<div class="crop-grid">
 
-
-<div class="form-card">
+<div class="card">
 
 <div class="form-group">
 
-<label>
+<label for="soil">
 Soil Type
 </label>
 
 <select id="soil">
 
-<option value="loamy">
-Loamy Soil
-</option>
-
-<option value="clay">
-Clay Soil
+<option value="">
+Select soil type
 </option>
 
 <option value="black">
 Black Soil
+</option>
+
+<option value="red">
+Red Soil
+</option>
+
+<option value="alluvial">
+Alluvial Soil
 </option>
 
 <option value="sandy">
@@ -1072,18 +1487,26 @@ Sandy Soil
 
 <div class="form-group">
 
-<label>
-Season
+<label for="rainfall">
+Rainfall
 </label>
 
-<select id="season">
+<select id="rainfall">
 
-<option value="kharif">
-Kharif
+<option value="">
+Select rainfall
 </option>
 
-<option value="rabi">
-Rabi
+<option value="low">
+Low
+</option>
+
+<option value="medium">
+Medium
+</option>
+
+<option value="high">
+High
 </option>
 
 </select>
@@ -1093,22 +1516,26 @@ Rabi
 
 <div class="form-group">
 
-<label>
-Water Availability
+<label for="season">
+Season
 </label>
 
-<select id="water">
+<select id="season">
 
-<option value="high">
-High
+<option value="">
+Select season
 </option>
 
-<option value="medium">
-Medium
+<option value="kharif">
+Kharif
 </option>
 
-<option value="low">
-Low
+<option value="rabi">
+Rabi
+</option>
+
+<option value="summer">
+Summer
 </option>
 
 </select>
@@ -1117,57 +1544,34 @@ Low
 
 
 <button
-    class="btn btn-green"
-    onclick="recommendCrop()"
+    type="button"
+    class="btn btn-primary"
+    id="cropButton"
 >
-🌱 Recommend Crop
+Recommend Crop
 </button>
-
-
-<div
-    id="cropResult"
-    class="result-box"
-></div>
 
 </div>
 
 
-<div class="form-card">
+<div class="card">
 
-<h3 style="color:#126b35">
-How it works
+<h3>
+Recommended Crop
 </h3>
 
 <p>
-The prototype uses basic agricultural rules
-to demonstrate a recommendation engine.
+Our basic recommendation engine considers
+soil, rainfall and season.
 </p>
 
-<br>
+<div
+    id="cropResult"
+    class="result-box"
+>
+</div>
 
-<p>
-<strong>Soil:</strong>
-Helps identify suitable crops.
-</p>
-
-<p>
-<strong>Season:</strong>
-Determines seasonal suitability.
-</p>
-
-<p>
-<strong>Water:</strong>
-Helps filter crops according
-to water needs.
-</p>
-
-<br>
-
-<p>
-⚠️ Demonstration only.
-Actual crop selection should use local
-soil tests, weather data and expert advice.
-</p>
+</div>
 
 </div>
 
@@ -1176,23 +1580,22 @@ soil tests, weather data and expert advice.
 </section>
 
 
-<!-- ==================================================
+<!-- ======================================================
      WEATHER
-================================================== -->
+====================================================== -->
 
-<section
-    class="weather-section"
-    id="weather"
->
+<section id="weather" class="section">
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
-🌦️ Farm Weather
+🌦️ Agriculture Weather
 </h2>
 
 <p>
-Example farm-weather dashboard.
+Weather information for agriculture planning.
 </p>
 
 </div>
@@ -1200,119 +1603,105 @@ Example farm-weather dashboard.
 
 <div class="weather-card">
 
-<div class="weather-top">
-
-<div>
-
-<h2>
-Hyderabad Region
-</h2>
-
-<p>
-Today's Farm Conditions
-</p>
-
-<div class="weather-temperature">
-28°C
-</div>
-
-<p>
-Partly Cloudy
-</p>
-
-</div>
-
+<div class="weather-main">
 
 <div class="weather-icon">
-⛅
+☀️
 </div>
 
+<div class="temperature">
+24°C
+</div>
+
+<h3>
+Hyderabad
+</h3>
+
+<p>
+Partly Sunny
+</p>
+
 </div>
 
 
-<div class="weather-details">
+<div class="weather-info">
 
-
-<div class="weather-detail">
-
-Humidity
+<div class="weather-item">
 
 <strong>
-68%
+💧 Humidity
 </strong>
-
-</div>
-
-
-<div class="weather-detail">
-
-Wind
-
-<strong>
-12 km/h
-</strong>
-
-</div>
-
-
-<div class="weather-detail">
-
-Rain Chance
-
-<strong>
-25%
-</strong>
-
-</div>
-
-
-<div class="weather-detail">
-
-UV Index
-
-<strong>
-Moderate
-</strong>
-
-</div>
-
-
-</div>
-
 
 <br>
 
-<p>
+65%
 
-💡
+</div>
+
+
+<div class="weather-item">
+
 <strong>
-Farm Advice:
+💨 Wind
 </strong>
 
-Monitor soil moisture and rainfall
-before irrigation.
+<br>
 
-</p>
+12 km/h
+
+</div>
+
+
+<div class="weather-item">
+
+<strong>
+🌧️ Rain Chance
+</strong>
+
+<br>
+
+20%
+
+</div>
+
+
+<div class="weather-item">
+
+<strong>
+🌡️ Soil Temp
+</strong>
+
+<br>
+
+23°C
+
+</div>
+
+</div>
+
+</div>
 
 </div>
 
 </section>
 
 
-<!-- ==================================================
+<!-- ======================================================
      MARKET
-================================================== -->
+====================================================== -->
 
-<section id="market">
+<section id="market" class="section">
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
-💰 Agricultural Market Prices
+📈 Agricultural Market Prices
 </h2>
 
 <p>
-Demonstration market data stored in MongoDB.
+Sample market prices loaded from MongoDB.
 </p>
 
 </div>
@@ -1335,19 +1724,30 @@ Market
 </th>
 
 <th>
-Price / Quintal
+Price
 </th>
 
 <th>
-Change
+Unit
+</th>
+
+<th>
+Trend
 </th>
 
 </tr>
 
 </thead>
 
-
 <tbody id="marketTable">
+
+<tr>
+
+<td colspan="5">
+Loading market prices...
+</td>
+
+</tr>
 
 </tbody>
 
@@ -1355,142 +1755,163 @@ Change
 
 </div>
 
+</div>
+
 </section>
 
 
-<!-- ==================================================
+<!-- ======================================================
      DISEASE
-================================================== -->
+====================================================== -->
 
-<section>
+<section class="section">
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
 🦠 Crop Disease Guidance
 </h2>
 
 <p>
-Basic information for common crop symptoms.
+Basic information about common crop problems.
 </p>
 
 </div>
 
 
-<div class="disease-cards">
+<div class="disease-grid">
 
-
-<div class="disease-card">
+<div class="card disease-card">
 
 <h3>
-🍅 Tomato Leaf Spots
+🍅 Tomato Blight
 </h3>
 
 <p>
-Look for dark or irregular spots.
-Remove severely affected material
-and maintain field sanitation.
+Symptoms include dark spots on leaves
+and fruits.
+</p>
+
+<br>
+
+<strong>
+Basic Prevention:
+</strong>
+
+<p>
+Maintain proper spacing and avoid
+excessive leaf moisture.
 </p>
 
 </div>
 
 
-<div class="disease-card">
+<div class="card disease-card">
 
 <h3>
-🌾 Rice Leaf Problems
+🌾 Rice Blast
 </h3>
 
 <p>
-Monitor discoloration and lesions.
-Use local agricultural recommendations
-for diagnosis.
+May cause diamond-shaped lesions
+on rice leaves.
+</p>
+
+<br>
+
+<strong>
+Basic Prevention:
+</strong>
+
+<p>
+Use balanced fertilizer and maintain
+appropriate field conditions.
 </p>
 
 </div>
 
 
-<div class="disease-card">
+<div class="card disease-card">
 
 <h3>
-🌱 Cotton Leaf Issues
+🌿 Cotton Pest Attack
 </h3>
 
 <p>
-Check for curling, discoloration
-and insect activity.
-Scout regularly.
+Leaves may show holes, curling or
+visible insect activity.
 </p>
 
-</div>
+<br>
 
-
-<div class="disease-card">
-
-<h3>
-🔬 Need Diagnosis?
-</h3>
+<strong>
+Basic Prevention:
+</strong>
 
 <p>
-A future version can accept crop
-photographs for AI-assisted disease
-identification.
+Monitor crops regularly and follow
+local agricultural recommendations.
 </p>
 
 </div>
 
+</div>
 
 </div>
 
 </section>
 
 
-<!-- ==================================================
+<!-- ======================================================
      MARKETPLACE
-================================================== -->
+====================================================== -->
 
-<section>
+<section class="section marketplace">
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
-🛒 Agri-Food Marketplace
+🛒 Agriculture Marketplace
 </h2>
 
 <p>
-Example products that could be connected
-to farmers and buyers.
+A simple concept for connecting farmers
+with agriculture products.
 </p>
 
 </div>
 
 
-<div class="marketplace">
-
+<div class="marketplace-grid">
 
 <div class="product-card">
 
-<div class="product-image">
+<div class="product-icon">
 🌱
 </div>
 
 <h3>
-Organic Seeds
+Seeds
 </h3>
 
 <p>
-Quality crop seeds for seasonal farming.
+Quality crop seeds for farming.
 </p>
 
-<div class="product-price">
-₹499
+<div class="price">
+₹500+
 </div>
 
 <button
-    class="btn btn-green"
-    onclick="showNotification('Product feature coming soon')"
+    type="button"
+    class="btn btn-primary btn-small"
+    onclick="showNotification('Seed marketplace feature coming soon')"
 >
-View Product
+View
 </button>
 
 </div>
@@ -1498,27 +1919,28 @@ View Product
 
 <div class="product-card">
 
-<div class="product-image">
+<div class="product-icon">
 🧪
 </div>
 
 <h3>
-Bio Fertilizer
+Fertilizers
 </h3>
 
 <p>
-Agricultural input for nutrient management.
+Agriculture fertilizer products.
 </p>
 
-<div class="product-price">
-₹699
+<div class="price">
+₹800+
 </div>
 
 <button
-    class="btn btn-green"
-    onclick="showNotification('Product feature coming soon')"
+    type="button"
+    class="btn btn-primary btn-small"
+    onclick="showNotification('Fertilizer marketplace feature coming soon')"
 >
-View Product
+View
 </button>
 
 </div>
@@ -1526,35 +1948,7 @@ View Product
 
 <div class="product-card">
 
-<div class="product-image">
-💧
-</div>
-
-<h3>
-Drip Irrigation Kit
-</h3>
-
-<p>
-Water-efficient irrigation equipment.
-</p>
-
-<div class="product-price">
-₹2,499
-</div>
-
-<button
-    class="btn btn-green"
-    onclick="showNotification('Product feature coming soon')"
->
-View Product
-</button>
-
-</div>
-
-
-<div class="product-card">
-
-<div class="product-image">
+<div class="product-icon">
 🚜
 </div>
 
@@ -1563,79 +1957,64 @@ Farm Equipment
 </h3>
 
 <p>
-Agricultural tools and equipment for farmers.
+Agricultural tools and equipment.
 </p>
 
-<div class="product-price">
-₹4,999
+<div class="price">
+₹2,000+
 </div>
 
 <button
-    class="btn btn-green"
-    onclick="showNotification('Product feature coming soon')"
+    type="button"
+    class="btn btn-primary btn-small"
+    onclick="showNotification('Equipment marketplace feature coming soon')"
 >
-View Product
+View
 </button>
 
 </div>
 
+</div>
 
 </div>
 
 </section>
 
 
-<!-- ==================================================
+<!-- ======================================================
      AI ASSISTANT
-================================================== -->
+====================================================== -->
 
-<section id="assistant">
+<section id="assistant" class="section assistant">
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
-🤖 Smart Agriculture Assistant
+🤖 AI Agriculture Assistant
 </h2>
 
 <p>
-Ask questions about farming and receive
-basic guidance.
+Ask a question about crops, soil, weather
+or farming.
 </p>
 
 </div>
 
 
-<div class="ai-container">
-
-
-<div class="ai-header">
-
-<h3>
-🌾 AgriBot
-</h3>
-
-<p>
-Your Smart Farming Assistant
-</p>
-
-</div>
-
+<div class="chat-box">
 
 <div
-    class="chat-box"
-    id="chatBox"
+    id="chatMessages"
+    class="chat-messages"
 >
 
-<div class="message message-bot">
+<div class="message ai">
 
-Hello! 👋
-I am AgriBot.
-
-<br>
-
-Ask me about crops, soil,
-irrigation, fertilizer,
-diseases or market prices.
+Hello! 👋 I am your agriculture assistant.
+Ask me about crops, soil, weather,
+market prices or farming.
 
 </div>
 
@@ -1645,18 +2024,21 @@ diseases or market prices.
 <div class="chat-input">
 
 <input
-    id="question"
+    id="assistantInput"
     type="text"
-    placeholder="Ask your farming question..."
-    onkeydown="handleEnter(event)"
->
+    placeholder="Ask an agriculture question..."
+    autocomplete="off"
+/>
 
 <button
-    class="btn btn-green"
-    onclick="askAssistant()"
+    type="button"
+    class="btn btn-primary"
+    id="assistantButton"
 >
-Ask
+Ask AI
 </button>
+
+</div>
 
 </div>
 
@@ -1665,143 +2047,173 @@ Ask
 </section>
 
 
-<!-- ==================================================
-     FARMER REGISTRATION
-================================================== -->
+<!-- ======================================================
+     REGISTER
+====================================================== -->
 
 <section
-    class="registration"
     id="register"
+    class="section register-section"
 >
 
-<div class="section-header">
+<div class="container">
+
+<div class="section-title">
 
 <h2>
 👨‍🌾 Farmer Registration
 </h2>
 
 <p>
-Create your farmer profile.
-Data is stored permanently in MongoDB.
+Register your details in the Smart Agri-Food Platform.
 </p>
 
 </div>
 
 
-<div class="registration-box">
+<div class="register-grid">
 
+<div class="registration-info">
+
+<h3>
+Join Smart Agriculture
+</h3>
+
+<p>
+Register as a farmer and store your
+basic farming information securely
+in the project database.
+</p>
+
+<ul>
+
+<li>
+✅ Farmer profile
+</li>
+
+<li>
+✅ Location information
+</li>
+
+<li>
+✅ Main crop information
+</li>
+
+<li>
+✅ MongoDB database storage
+</li>
+
+<li>
+✅ View registered farmers
+</li>
+
+</ul>
+
+</div>
+
+
+<div class="registration-form">
+
+<form id="farmerForm">
+
+<div class="form-row">
 
 <div class="form-group">
 
-<label>
-Farmer Name
+<label for="farmerName">
+Full Name
 </label>
 
 <input
     id="farmerName"
-    placeholder="Enter your full name"
->
+    type="text"
+    placeholder="Enter your name"
+    required
+/>
 
 </div>
 
 
 <div class="form-group">
 
-<label>
+<label for="farmerMobile">
 Mobile Number
 </label>
 
 <input
-    id="mobile"
+    id="farmerMobile"
     type="tel"
     placeholder="Enter mobile number"
->
+    maxlength="15"
+    required
+/>
+
+</div>
 
 </div>
 
 
+<div class="form-row">
+
 <div class="form-group">
 
-<label>
-Village / Location
+<label for="farmerLocation">
+Location
 </label>
 
 <input
-    id="location"
-    placeholder="Enter village or location"
->
+    id="farmerLocation"
+    type="text"
+    placeholder="Village / City"
+    required
+/>
 
 </div>
 
 
 <div class="form-group">
 
-<label>
+<label for="farmerCrop">
 Main Crop
 </label>
 
-<select id="mainCrop">
+<input
+    id="farmerCrop"
+    type="text"
+    placeholder="Example: Rice"
+    required
+/>
 
-<option>
-Rice
-</option>
-
-<option>
-Wheat
-</option>
-
-<option>
-Cotton
-</option>
-
-<option>
-Tomato
-</option>
-
-<option>
-Maize
-</option>
-
-<option>
-Groundnut
-</option>
-
-</select>
+</div>
 
 </div>
 
 
 <button
-    class="btn btn-green"
-    onclick="registerFarmer()"
+    type="submit"
+    class="btn btn-primary"
 >
-👨‍🌾 Register Farmer
+Register Farmer
 </button>
 
+</form>
 
-<div
-    id="registrationResult"
-    class="result-box"
-></div>
-
+</div>
 
 </div>
 
 
-<!-- REGISTERED FARMERS -->
+<div class="farmers-list">
 
-<div class="farmer-list">
-
-<div class="section-header">
-
-<h2>
+<h3>
 Registered Farmers
-</h2>
+</h3>
 
-<p>
-Saved records from MongoDB Atlas.
-</p>
-
+<div
+    id="farmerCountText"
+    class="farmer-count"
+>
+Loading farmers...
 </div>
 
 
@@ -1837,8 +2249,15 @@ Action
 
 </thead>
 
-
 <tbody id="farmerTable">
+
+<tr>
+
+<td colspan="5">
+Loading farmers...
+</td>
+
+</tr>
 
 </tbody>
 
@@ -1848,486 +2267,595 @@ Action
 
 </div>
 
+</div>
+
 </section>
 
 
-<!-- ==================================================
+<!-- ======================================================
      FOOTER
-================================================== -->
+====================================================== -->
 
 <footer>
 
-<h2>
+<div class="container">
+
+<div class="footer-grid">
+
+<div>
+
+<h3>
 🌾 Smart Agri-Food Platform
-</h2>
+</h3>
 
 <p>
-Technology • Agriculture • Sustainability
+A college project demonstrating how
+technology can support modern agriculture.
 </p>
 
-<br>
+</div>
 
-<p>
-Version 2 — MongoDB Atlas + Render Ready
-</p>
+
+<div>
+
+<h4>
+Quick Links
+</h4>
+
+<ul>
+
+<li>
+<a href="#home">
+Home
+</a>
+</li>
+
+<li>
+<a href="#features">
+Features
+</a>
+</li>
+
+<li>
+<a href="#market">
+Market
+</a>
+</li>
+
+<li>
+<a href="#register">
+Register
+</a>
+</li>
+
+</ul>
+
+</div>
+
+
+<div>
+
+<h4>
+Platform
+</h4>
+
+<ul>
+
+<li>
+🌱 Crop Recommendation
+</li>
+
+<li>
+🌦️ Weather
+</li>
+
+<li>
+📈 Market Prices
+</li>
+
+<li>
+🤖 AI Assistant
+</li>
+
+</ul>
+
+</div>
+
+</div>
+
+
+<div class="footer-bottom">
+
+© 2026 Smart Agri-Food Platform
+
+</div>
+
+</div>
 
 </footer>
 
 
-<div
-    id="notification"
-    class="notification"
-></div>
+<!-- ======================================================
+     NOTIFICATION
+====================================================== -->
+
+<div id="notification"></div>
 
 
-<!-- ==================================================
-     FRONTEND JAVASCRIPT
-================================================== -->
+<!-- ======================================================
+     JAVASCRIPT
+====================================================== -->
 
 <script>
 
-/* ============================
-   GENERAL FUNCTIONS
-============================ */
-
-function scrollToSection(id) {
-
-    const element = document.getElementById(id);
-
-    if (element) {
-
-        element.scrollIntoView({
-            behavior: "smooth"
-        });
-
-    }
-
-}
-
-
-/* ============================
-   HTML ESCAPE
-============================ */
-
-function escapeHTML(text) {
-
-    return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-
-}
-
-
-/* ============================
+/* =========================================================
    NOTIFICATION
-============================ */
+========================================================= */
+
+let notificationTimer = null;
 
 function showNotification(message) {
 
     const notification =
         document.getElementById("notification");
 
-    notification.innerText = message;
+    notification.textContent = message;
 
     notification.classList.add("show");
 
-    setTimeout(() => {
+    clearTimeout(notificationTimer);
+
+    notificationTimer = setTimeout(() => {
 
         notification.classList.remove("show");
 
     }, 3000);
+}
+
+
+/* =========================================================
+   SAFE HTML
+========================================================= */
+
+function escapeHTML(value) {
+
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   SMOOTH SCROLL
+========================================================= */
+
+function scrollToSection(id) {
+
+    const element =
+        document.getElementById(id);
+
+    if (!element) {
+        return;
+    }
+
+    element.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
 
 }
 
 
-/* ============================
-   LOAD MARKET PRICES
-============================ */
+/* =========================================================
+   CROP RECOMMENDATION
+========================================================= */
+
+function recommendCrop() {
+
+    const soil =
+        document.getElementById("soil").value;
+
+    const rainfall =
+        document.getElementById("rainfall").value;
+
+    const season =
+        document.getElementById("season").value;
+
+    const result =
+        document.getElementById("cropResult");
+
+    if (!soil || !rainfall || !season) {
+
+        result.innerHTML =
+            "⚠️ Please select soil, rainfall and season.";
+
+        result.classList.add("show");
+
+        return;
+    }
+
+
+    let crop = "Maize";
+
+    let reason =
+        "Maize can perform well under a variety of conditions.";
+
+
+    if (
+        soil === "black" &&
+        rainfall === "medium" &&
+        season === "kharif"
+    ) {
+
+        crop = "Cotton";
+
+        reason =
+            "Black soil and Kharif conditions can be suitable for cotton.";
+
+    } else if (
+        rainfall === "high" &&
+        season === "kharif"
+    ) {
+
+        crop = "Rice";
+
+        reason =
+            "Rice generally requires higher water availability.";
+
+    } else if (
+        soil === "red" &&
+        rainfall === "low"
+    ) {
+
+        crop = "Groundnut";
+
+        reason =
+            "Groundnut can be suitable for lighter soils with lower rainfall.";
+
+    } else if (
+        season === "rabi"
+    ) {
+
+        crop = "Wheat";
+
+        reason =
+            "Wheat is commonly grown during the Rabi season.";
+
+    } else if (
+        season === "summer" &&
+        rainfall === "low"
+    ) {
+
+        crop = "Groundnut";
+
+        reason =
+            "Groundnut can be considered for suitable warm and relatively dry conditions.";
+
+    }
+
+
+    result.innerHTML = \`
+        <strong>🌱 Recommended Crop: \${escapeHTML(crop)}</strong>
+        <br><br>
+        \${escapeHTML(reason)}
+        <br><br>
+        <small>
+        Note: This is a demonstration recommendation.
+        Consult local agricultural experts for real farming decisions.
+        </small>
+    \`;
+
+    result.classList.add("show");
+}
+
+
+/* =========================================================
+   MARKET DATA
+========================================================= */
 
 async function loadMarketPrices() {
+
+    const table =
+        document.getElementById("marketTable");
 
     try {
 
         const response =
             await fetch("/api/market");
 
+        if (!response.ok) {
+            throw new Error("Unable to load market data");
+        }
+
         const data =
             await response.json();
 
-        const table =
-            document.getElementById("marketTable");
 
-        table.innerHTML = "";
+        if (!Array.isArray(data) || data.length === 0) {
 
-        data.forEach(item => {
+            table.innerHTML = \`
+                <tr>
+                    <td colspan="5">
+                        No market data available.
+                    </td>
+                </tr>
+            \`;
 
-            const row =
-                document.createElement("tr");
+            return;
+        }
 
-            const changeClass =
-                String(item.change || "")
-                    .startsWith("+")
-                    ? "positive"
-                    : "negative";
 
-            row.innerHTML =
+        table.innerHTML =
+            data.map(item => {
 
-                "<td>🌾 " +
-                escapeHTML(item.crop) +
-                "</td>" +
+                let trendClass =
+                    "trend-stable";
 
-                "<td>" +
-                escapeHTML(item.market) +
-                "</td>" +
+                if (String(item.trend).toLowerCase() === "up") {
+                    trendClass = "trend-up";
+                }
 
-                "<td><strong>₹" +
-                Number(item.price)
-                    .toLocaleString("en-IN") +
-                "</strong></td>" +
+                if (String(item.trend).toLowerCase() === "down") {
+                    trendClass = "trend-down";
+                }
 
-                "<td class='" +
-                changeClass +
-                "'>" +
-                escapeHTML(item.change) +
-                "</td>";
 
-            table.appendChild(row);
+                return \`
+                    <tr>
 
-        });
+                        <td>
+                            \${escapeHTML(item.crop)}
+                        </td>
 
+                        <td>
+                            \${escapeHTML(item.market)}
+                        </td>
+
+                        <td class="price">
+                            ₹\${Number(item.price).toLocaleString("en-IN")}
+                        </td>
+
+                        <td>
+                            \${escapeHTML(item.unit)}
+                        </td>
+
+                        <td class="\${trendClass}">
+                            \${escapeHTML(item.trend)}
+                        </td>
+
+                    </tr>
+                \`;
+
+            }).join("");
+
+    } catch (error) {
+
+        console.error(error);
+
+        table.innerHTML = \`
+            <tr>
+                <td colspan="5">
+                    Unable to load market prices.
+                </td>
+            </tr>
+        \`;
     }
-
-    catch (error) {
-
-        console.log(
-            "Market loading error:",
-            error
-        );
-
-    }
-
 }
 
 
-/* ============================
-   LOAD FARMERS
-============================ */
+/* =========================================================
+   FARMER DATA
+========================================================= */
 
 async function loadFarmers() {
+
+    const table =
+        document.getElementById("farmerTable");
+
+    const count =
+        document.getElementById("farmerCount");
+
+    const countText =
+        document.getElementById("farmerCountText");
+
 
     try {
 
         const response =
             await fetch("/api/farmers");
 
-        const data =
+        if (!response.ok) {
+            throw new Error("Unable to load farmers");
+        }
+
+        const farmers =
             await response.json();
 
-        document.getElementById(
-            "farmerCount"
-        ).innerText = data.length;
 
-        const table =
-            document.getElementById("farmerTable");
+        count.textContent =
+            farmers.length;
 
-        table.innerHTML = "";
+        countText.textContent =
+            farmers.length +
+            " farmer(s) registered";
 
-        data.forEach(farmer => {
 
-            const row =
-                document.createElement("tr");
+        if (farmers.length === 0) {
 
-            row.innerHTML =
+            table.innerHTML = \`
+                <tr>
+                    <td colspan="5">
+                        No farmers registered yet.
+                    </td>
+                </tr>
+            \`;
 
-                "<td>" +
-                escapeHTML(farmer.name) +
-                "</td>" +
+            return;
+        }
 
-                "<td>" +
-                escapeHTML(farmer.mobile) +
-                "</td>" +
 
-                "<td>" +
-                escapeHTML(farmer.location) +
-                "</td>" +
+        table.innerHTML =
+            farmers.map(farmer => {
 
-                "<td>" +
-                escapeHTML(farmer.crop) +
-                "</td>" +
+                return \`
+                    <tr>
 
-                "<td>" +
+                        <td>
+                            \${escapeHTML(farmer.name)}
+                        </td>
 
-                "<button " +
-                "class='btn btn-danger' " +
-                "onclick=\"deleteFarmer('" +
-                farmer._id +
-                "')\">" +
+                        <td>
+                            \${escapeHTML(farmer.mobile)}
+                        </td>
 
-                "Delete" +
+                        <td>
+                            \${escapeHTML(farmer.location)}
+                        </td>
 
-                "</button>" +
+                        <td>
+                            \${escapeHTML(farmer.crop)}
+                        </td>
 
-                "</td>";
+                        <td>
 
-            table.appendChild(row);
+                            <button
+                                type="button"
+                                class="btn btn-danger btn-small"
+                                onclick="deleteFarmer('\${escapeHTML(farmer._id)}')"
+                            >
+                                Delete
+                            </button>
 
-        });
+                        </td>
 
+                    </tr>
+                \`;
+
+            }).join("");
+
+    } catch (error) {
+
+        console.error(error);
+
+        count.textContent = "0";
+
+        countText.textContent =
+            "Unable to load farmer data";
+
+        table.innerHTML = \`
+            <tr>
+                <td colspan="5">
+                    Unable to load registered farmers.
+                </td>
+            </tr>
+        \`;
     }
-
-    catch (error) {
-
-        console.log(
-            "Farmer loading error:",
-            error
-        );
-
-    }
-
 }
 
 
-/* ============================
+/* =========================================================
    DELETE FARMER
-============================ */
+========================================================= */
 
 async function deleteFarmer(id) {
 
-    if (!confirm(
-        "Delete this farmer record?"
-    )) {
-
+    if (!id) {
         return;
-
     }
+
+
+    const confirmed =
+        window.confirm(
+            "Are you sure you want to delete this farmer?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
 
     try {
 
         const response =
             await fetch(
-                "/api/farmers/" + id,
+                "/api/farmers/" +
+                encodeURIComponent(id),
                 {
                     method: "DELETE"
                 }
             );
 
+
         const data =
             await response.json();
 
-        if (data.success) {
 
-            showNotification(
-                "Farmer deleted."
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Unable to delete farmer"
             );
-
-            loadFarmers();
-
         }
 
-        else {
-
-            showNotification(
-                data.message ||
-                "Delete failed."
-            );
-
-        }
-
-    }
-
-    catch (error) {
 
         showNotification(
-            "Delete failed."
-        );
-
-    }
-
-}
-
-
-/* ============================
-   CROP RECOMMENDATION
-============================ */
-
-function recommendCrop() {
-
-    const soil =
-        document.getElementById(
-            "soil"
-        ).value;
-
-    const season =
-        document.getElementById(
-            "season"
-        ).value;
-
-    const water =
-        document.getElementById(
-            "water"
-        ).value;
-
-
-    let crop;
-
-    let reason;
-
-
-    if (
-        soil === "clay" &&
-        season === "kharif" &&
-        water === "high"
-    ) {
-
-        crop = "🌾 Rice";
-
-        reason =
-            "Clay soil, Kharif season and high water availability can suit rice in appropriate local environments.";
-
-    }
-
-    else if (
-        soil === "loamy" &&
-        season === "rabi"
-    ) {
-
-        crop = "🌾 Wheat";
-
-        reason =
-            "Loamy soil and Rabi season are commonly associated with wheat where local conditions are suitable.";
-
-    }
-
-    else if (
-        soil === "black"
-    ) {
-
-        crop = "🌿 Cotton";
-
-        reason =
-            "Black soils can be suitable for cotton in appropriate regions and seasons.";
-
-    }
-
-    else if (
-        soil === "sandy"
-    ) {
-
-        crop = "🥜 Groundnut";
-
-        reason =
-            "Well-drained sandy or sandy-loam soils can suit groundnut under suitable conditions.";
-
-    }
-
-    else if (
-        season === "kharif" &&
-        water === "medium"
-    ) {
-
-        crop = "🌽 Maize";
-
-        reason =
-            "Maize can be considered for suitable Kharif conditions with moderate water availability.";
-
-    }
-
-    else {
-
-        crop = "🍅 Tomato";
-
-        reason =
-            "Tomato may be considered, but final selection should use local soil, climate and market information.";
-
-    }
-
-
-    const result =
-        document.getElementById(
-            "cropResult"
+            "Farmer deleted successfully."
         );
 
 
-    result.innerHTML =
+        await loadFarmers();
 
-        "<h3>" +
-        "Recommended Crop: " +
-        crop +
-        "</h3>" +
+    } catch (error) {
 
-        "<p>" +
-        reason +
-        "</p>" +
+        console.error(error);
 
-        "<br>" +
-
-        "<small>" +
-        "This is a demonstration recommendation engine." +
-        "</small>";
-
-
-    result.classList.add("show");
-
+        showNotification(
+            "Unable to delete farmer."
+        );
+    }
 }
 
 
-/* ============================
+/* =========================================================
    FARMER REGISTRATION
-============================ */
+========================================================= */
 
-async function registerFarmer() {
+async function registerFarmer(event) {
+
+    if (event) {
+        event.preventDefault();
+    }
+
 
     const name =
-        document.getElementById(
-            "farmerName"
-        ).value.trim();
+        document.getElementById("farmerName").value.trim();
 
     const mobile =
-        document.getElementById(
-            "mobile"
-        ).value.trim();
+        document.getElementById("farmerMobile").value.trim();
 
     const location =
-        document.getElementById(
-            "location"
-        ).value.trim();
+        document.getElementById("farmerLocation").value.trim();
 
     const crop =
-        document.getElementById(
-            "mainCrop"
-        ).value;
+        document.getElementById("farmerCrop").value.trim();
 
 
-    if (
-        !name ||
-        !mobile ||
-        !location
-    ) {
+    if (!name || !mobile || !location || !crop) {
 
         showNotification(
-            "Please fill all required fields."
+            "Please fill all farmer details."
         );
 
         return;
-
-    }
-
-
-    if (
-        !/^[0-9+() -]{7,20}$/.test(
-            mobile
-        )
-    ) {
-
-        showNotification(
-            "Please enter a valid mobile number."
-        );
-
-        return;
-
     }
 
 
@@ -2350,7 +2878,6 @@ async function registerFarmer() {
                         location,
                         crop
                     })
-
                 }
             );
 
@@ -2359,90 +2886,68 @@ async function registerFarmer() {
             await response.json();
 
 
-        if (data.success) {
+        if (!response.ok) {
 
-            document.getElementById(
-                "registrationResult"
-            ).innerHTML =
-
-                "<h3>" +
-                "✅ Registration Successful" +
-                "</h3>" +
-
-                "<p>" +
-                "Welcome, <strong>" +
-                escapeHTML(name) +
-                "</strong>!" +
-                "</p>" +
-
-                "<p>" +
-                "Your farmer profile has been saved to MongoDB." +
-                "</p>";
-
-
-            document.getElementById(
-                "registrationResult"
-            ).classList.add("show");
-
-
-            document.getElementById(
-                "farmerName"
-            ).value = "";
-
-
-            document.getElementById(
-                "mobile"
-            ).value = "";
-
-
-            document.getElementById(
-                "location"
-            ).value = "";
-
-
-            showNotification(
-                "Farmer registered successfully!"
+            throw new Error(
+                data.error ||
+                "Registration failed"
             );
-
-
-            loadFarmers();
-
         }
 
-        else {
 
-            showNotification(
-                data.message ||
-                "Registration failed."
-            );
+        document
+            .getElementById("farmerForm")
+            .reset();
 
-        }
-
-    }
-
-    catch (error) {
-
-        console.log(error);
 
         showNotification(
-            "Registration failed. Please try again."
+            "Farmer registered successfully! 🌾"
         );
 
-    }
 
+        await loadFarmers();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showNotification(
+            error.message ||
+            "Unable to register farmer."
+        );
+    }
 }
 
 
-/* ============================
+/* =========================================================
    AI ASSISTANT
-============================ */
+========================================================= */
+
+function addChatMessage(message, type) {
+
+    const container =
+        document.getElementById("chatMessages");
+
+    const div =
+        document.createElement("div");
+
+    div.className =
+        "message " + type;
+
+    div.textContent =
+        message;
+
+    container.appendChild(div);
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
 
 async function askAssistant() {
 
     const input =
-        document.getElementById(
-            "question"
-        );
+        document.getElementById("assistantInput");
 
     const question =
         input.value.trim();
@@ -2450,30 +2955,17 @@ async function askAssistant() {
 
     if (!question) {
 
-        return;
+        showNotification(
+            "Please enter a question."
+        );
 
+        return;
     }
 
 
-    const chat =
-        document.getElementById(
-            "chatBox"
-        );
-
-
-    const userMessage =
-        document.createElement(
-            "div"
-        );
-
-    userMessage.className =
-        "message message-user";
-
-    userMessage.innerText =
-        question;
-
-    chat.appendChild(
-        userMessage
+    addChatMessage(
+        question,
+        "user"
     );
 
 
@@ -2496,7 +2988,6 @@ async function askAssistant() {
                     body: JSON.stringify({
                         question
                     })
-
                 }
             );
 
@@ -2505,84 +2996,205 @@ async function askAssistant() {
             await response.json();
 
 
-        const botMessage =
-            document.createElement(
-                "div"
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Assistant error"
             );
-
-        botMessage.className =
-            "message message-bot";
-
-        botMessage.innerText =
-            "🤖 " + data.answer;
+        }
 
 
-        chat.appendChild(
-            botMessage
+        addChatMessage(
+            data.answer,
+            "ai"
         );
 
+    } catch (error) {
 
-        chat.scrollTop =
-            chat.scrollHeight;
+        console.error(error);
 
-    }
-
-    catch (error) {
-
-        const botMessage =
-            document.createElement(
-                "div"
-            );
-
-        botMessage.className =
-            "message message-bot";
-
-        botMessage.innerText =
-            "Sorry, the agriculture assistant is temporarily unavailable.";
-
-
-        chat.appendChild(
-            botMessage
+        addChatMessage(
+            "Sorry, I could not process your question right now.",
+            "ai"
         );
-
     }
-
 }
 
 
-/* ============================
+/* =========================================================
    ENTER KEY FOR AI
-============================ */
+========================================================= */
 
 function handleEnter(event) {
 
     if (event.key === "Enter") {
 
+        event.preventDefault();
+
         askAssistant();
-
     }
-
 }
 
 
-/* ============================
-   INITIAL LOAD
-============================ */
+/* =========================================================
+   INITIALIZE FRONTEND
+========================================================= */
 
-loadMarketPrices();
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-loadFarmers();
+        /*
+         * Navigation
+         *
+         * Header links are normal #anchor links,
+         * so they work even if another JS function fails.
+         */
+
+        document
+            .querySelectorAll('nav a[href^="#"]')
+            .forEach(link => {
+
+                link.addEventListener(
+                    "click",
+                    function (event) {
+
+                        const targetId =
+                            this.getAttribute("href");
+
+                        if (!targetId) {
+                            return;
+                        }
+
+
+                        const target =
+                            document.querySelector(
+                                targetId
+                            );
+
+
+                        if (target) {
+
+                            event.preventDefault();
+
+                            target.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start"
+                            });
+
+                            /*
+                             * Update URL hash without
+                             * causing another jump.
+                             */
+
+                            history.replaceState(
+                                null,
+                                "",
+                                targetId
+                            );
+                        }
+
+                    }
+                );
+
+            });
+
+
+        /*
+         * Crop button
+         */
+
+        const cropButton =
+            document.getElementById("cropButton");
+
+        if (cropButton) {
+
+            cropButton.addEventListener(
+                "click",
+                recommendCrop
+            );
+
+        }
+
+
+        /*
+         * Farmer form
+         */
+
+        const farmerForm =
+            document.getElementById("farmerForm");
+
+        if (farmerForm) {
+
+            farmerForm.addEventListener(
+                "submit",
+                registerFarmer
+            );
+
+        }
+
+
+        /*
+         * AI button
+         */
+
+        const assistantButton =
+            document.getElementById(
+                "assistantButton"
+            );
+
+        if (assistantButton) {
+
+            assistantButton.addEventListener(
+                "click",
+                askAssistant
+            );
+
+        }
+
+
+        /*
+         * AI Enter key
+         */
+
+        const assistantInput =
+            document.getElementById(
+                "assistantInput"
+            );
+
+        if (assistantInput) {
+
+            assistantInput.addEventListener(
+                "keydown",
+                handleEnter
+            );
+
+        }
+
+
+        /*
+         * Load MongoDB data
+         */
+
+        loadMarketPrices();
+
+        loadFarmers();
+
+    }
+);
 
 </script>
 
 </body>
 
-</html>`;
+</html>
+`;
 
 
-/* ======================================================
-   JSON RESPONSE FUNCTION
-====================================================== */
+/* =========================================================
+   JSON RESPONSE
+========================================================= */
 
 function sendJSON(
     response,
@@ -2590,186 +3202,250 @@ function sendJSON(
     data
 ) {
 
-    response.statusCode =
-        statusCode;
+    const body =
+        JSON.stringify(data);
 
-    response.setHeader(
-        "Content-Type",
-        "application/json; charset=utf-8"
+
+    response.writeHead(
+        statusCode,
+        {
+            "Content-Type":
+                "application/json; charset=utf-8",
+
+            "Access-Control-Allow-Origin":
+                "*",
+
+            "Access-Control-Allow-Methods":
+                "GET,POST,DELETE,OPTIONS",
+
+            "Access-Control-Allow-Headers":
+                "Content-Type"
+        }
     );
 
-    response.setHeader(
-        "Access-Control-Allow-Origin",
-        "*"
-    );
 
-    response.end(
-        JSON.stringify(data)
-    );
-
+    response.end(body);
 }
 
 
-/* ======================================================
-   READ JSON REQUEST BODY
-====================================================== */
+/* =========================================================
+   BODY READER
+========================================================= */
 
-function getRequestBody(req) {
+function getRequestBody(request) {
 
     return new Promise(
         (resolve, reject) => {
 
             let body = "";
 
-            req.on(
+            request.on(
                 "data",
                 chunk => {
 
-                    body +=
-                        chunk.toString();
+                    body += chunk.toString();
 
-                    if (
-                        body.length >
-                        1e6
-                    ) {
+                    if (body.length > 1000000) {
 
-                        req.destroy();
+                        reject(
+                            new Error(
+                                "Request body too large"
+                            )
+                        );
 
+                        request.destroy();
                     }
 
                 }
             );
 
 
-            req.on(
+            request.on(
                 "end",
                 () => {
+
+                    if (!body) {
+
+                        resolve({});
+
+                        return;
+                    }
+
 
                     try {
 
                         resolve(
-                            body
-                                ? JSON.parse(body)
-                                : {}
+                            JSON.parse(body)
                         );
 
-                    }
+                    } catch (error) {
 
-                    catch (error) {
-
-                        reject(error);
-
+                        reject(
+                            new Error(
+                                "Invalid JSON"
+                            )
+                        );
                     }
 
                 }
             );
 
 
-            req.on(
+            request.on(
                 "error",
                 reject
             );
 
         }
     );
-
 }
 
 
-/* ======================================================
+/* =========================================================
    FARMER VALIDATION
-====================================================== */
+========================================================= */
 
-function validFarmer(body) {
+function validFarmer(data) {
 
-    return (
-        body &&
-        String(body.name || "").trim() &&
-        String(body.mobile || "").trim() &&
-        String(body.location || "").trim()
-    );
+    if (!data) {
+        return false;
+    }
 
+    if (
+        typeof data.name !== "string" ||
+        typeof data.mobile !== "string" ||
+        typeof data.location !== "string" ||
+        typeof data.crop !== "string"
+    ) {
+        return false;
+    }
+
+
+    if (
+        data.name.trim().length < 2 ||
+        data.name.trim().length > 100
+    ) {
+        return false;
+    }
+
+
+    if (
+        data.mobile.trim().length < 5 ||
+        data.mobile.trim().length > 20
+    ) {
+        return false;
+    }
+
+
+    if (
+        data.location.trim().length < 2 ||
+        data.location.trim().length > 150
+    ) {
+        return false;
+    }
+
+
+    if (
+        data.crop.trim().length < 2 ||
+        data.crop.trim().length > 100
+    ) {
+        return false;
+    }
+
+
+    return true;
 }
 
 
-/* ======================================================
+/* =========================================================
    AI ASSISTANT LOGIC
-====================================================== */
+========================================================= */
 
 function assistantAnswer(question) {
 
     const q =
-        String(question || "")
-            .toLowerCase();
+        String(question)
+            .toLowerCase()
+            .trim();
 
 
-    if (q.includes("rice")) {
-
-        return (
-            "Rice generally requires suitable soil, " +
-            "adequate water and appropriate temperature. " +
-            "Irrigation and nutrient management should " +
-            "follow local recommendations."
-        );
-
-    }
-
-
-    if (q.includes("wheat")) {
+    if (
+        q.includes("rice") ||
+        q.includes("paddy")
+    ) {
 
         return (
-            "Wheat is generally grown during the Rabi " +
-            "season. Proper irrigation, weed management " +
-            "and balanced nutrients are important."
-        );
-
-    }
-
-
-    if (q.includes("cotton")) {
-
-        return (
-            "Cotton performs well in suitable warm " +
-            "conditions and is commonly associated " +
-            "with black soils in several regions. " +
-            "Monitor pests and disease symptoms."
-        );
-
-    }
-
-
-    if (q.includes("tomato")) {
-
-        return (
-            "Tomato requires suitable drainage, nutrients " +
-            "and careful irrigation. Regular monitoring " +
-            "helps detect disease and pest problems early."
-        );
-
-    }
-
-
-    if (q.includes("soil")) {
-
-        return (
-            "A soil test is the best way to understand " +
-            "pH and nutrient availability. Crop and " +
-            "fertilizer decisions should use test results " +
-            "and local recommendations."
+            "Rice generally requires good water availability. " +
+            "Maintain appropriate irrigation, monitor pests and " +
+            "diseases, and use balanced nutrients. Local agricultural " +
+            "recommendations should be followed for specific varieties."
         );
 
     }
 
 
     if (
-        q.includes("water") ||
-        q.includes("irrigation")
+        q.includes("cotton")
     ) {
 
         return (
-            "Irrigation should depend on crop stage, " +
-            "soil moisture, weather and local water " +
-            "availability. Avoid unnecessary irrigation."
+            "Cotton grows well under suitable warm conditions. " +
+            "Monitor the crop regularly for pests, maintain proper " +
+            "nutrient management and follow local agricultural guidance."
+        );
+
+    }
+
+
+    if (
+        q.includes("tomato")
+    ) {
+
+        return (
+            "For tomatoes, maintain proper spacing, avoid excessive " +
+            "leaf wetness, monitor for fungal diseases and provide " +
+            "balanced nutrition and irrigation."
+        );
+
+    }
+
+
+    if (
+        q.includes("soil")
+    ) {
+
+        return (
+            "Soil testing is useful before selecting crops and fertilizer. " +
+            "It can help identify pH and nutrient levels. Crop selection " +
+            "should consider soil type, rainfall, season and local conditions."
+        );
+
+    }
+
+
+    if (
+        q.includes("weather") ||
+        q.includes("rain")
+    ) {
+
+        return (
+            "Weather information can help farmers plan irrigation, " +
+            "spraying, harvesting and other activities. Always check " +
+            "current local forecasts before making important decisions."
+        );
+
+    }
+
+
+    if (
+        q.includes("market") ||
+        q.includes("price")
+    ) {
+
+        return (
+            "Market prices can change based on supply, demand, quality " +
+            "and location. Compare prices from multiple reliable local " +
+            "markets before selling your produce."
         );
 
     }
@@ -2781,468 +3457,316 @@ function assistantAnswer(question) {
     ) {
 
         return (
-            "Use fertilizer according to soil-test results " +
-            "and crop requirements. More fertilizer does " +
-            "not necessarily mean more yield."
+            "Use fertilizer according to soil-test results and crop needs. " +
+            "Avoid excessive application. Local agricultural officers " +
+            "can provide crop-specific recommendations."
         );
 
     }
 
 
     if (
-        q.includes("disease") ||
-        q.includes("leaf") ||
-        q.includes("spots")
+        q.includes("pest") ||
+        q.includes("insect")
     ) {
 
         return (
-            "For suspected disease, check spots, " +
-            "discoloration, wilting, insects and affected " +
-            "plant parts. Local expert diagnosis is " +
-            "recommended before treatment."
+            "Inspect crops regularly for pest activity. Integrated pest " +
+            "management can combine monitoring, cultural practices, " +
+            "biological controls and appropriate approved treatments."
         );
 
     }
 
 
     if (
-        q.includes("market") ||
-        q.includes("price") ||
-        q.includes("mandi")
+        q.includes("hello") ||
+        q.includes("hi") ||
+        q.includes("help")
     ) {
 
         return (
-            "Agricultural prices change by market, date, " +
-            "crop quality and quantity. Check the latest " +
-            "local mandi information before selling."
-        );
-
-    }
-
-
-    if (
-        q.includes("maize") ||
-        q.includes("corn")
-    ) {
-
-        return (
-            "Maize can be grown in suitable Kharif or " +
-            "Rabi conditions depending on the region. " +
-            "Good drainage, nutrients and timely irrigation " +
-            "are important."
+            "Hello! 👋 I can provide basic information about crops, " +
+            "soil, weather, market prices, pests and farming practices."
         );
 
     }
 
 
     return (
-        "I can help with crop selection, soil, irrigation, " +
-        "fertilizer, crop diseases and market information. " +
-        "Try asking: Which crop is suitable for black soil?"
+        "I can help with basic agriculture topics such as crop selection, " +
+        "soil, weather, irrigation, market prices, pests and fertilizers. " +
+        "Please ask a specific farming question."
     );
-
 }
 
 
-/* ======================================================
+/* =========================================================
    HTTP SERVER
-====================================================== */
+========================================================= */
 
 const server =
     http.createServer(
-        async (req, res) => {
+        async (request, response) => {
 
-            const url =
-                new URL(
-                    req.url,
-                    `http://${req.headers.host || "localhost"}`
-                );
+            try {
 
-
-            /* ==========================================
-               OPTIONS / CORS
-            ========================================== */
-
-            if (
-                req.method === "OPTIONS"
-            ) {
-
-                res.statusCode = 204;
-
-                res.setHeader(
-                    "Access-Control-Allow-Origin",
-                    "*"
-                );
-
-                res.setHeader(
-                    "Access-Control-Allow-Methods",
-                    "GET,POST,DELETE,OPTIONS"
-                );
-
-                res.setHeader(
-                    "Access-Control-Allow-Headers",
-                    "Content-Type"
-                );
-
-                res.end();
-
-                return;
-
-            }
+                const url =
+                    new URL(
+                        request.url,
+                        "http://" +
+                        request.headers.host
+                    );
 
 
-            /* ==========================================
-               HOME PAGE
-            ========================================== */
-
-            if (
-                req.method === "GET" &&
-                url.pathname === "/"
-            ) {
-
-                res.statusCode = 200;
-
-                res.setHeader(
-                    "Content-Type",
-                    "text/html; charset=utf-8"
-                );
-
-                res.end(html);
-
-                return;
-
-            }
+                const pathname =
+                    url.pathname;
 
 
-            /* ==========================================
-               SERVER STATUS
-            ========================================== */
+                /* -----------------------------------------
+                   CORS PREFLIGHT
+                ----------------------------------------- */
 
-            if (
-                req.method === "GET" &&
-                url.pathname === "/api/status"
-            ) {
+                if (
+                    request.method === "OPTIONS"
+                ) {
 
-                try {
+                    response.writeHead(
+                        204,
+                        {
+                            "Access-Control-Allow-Origin": "*",
 
-                    const farmerCount =
-                        await farmersCollection.countDocuments();
+                            "Access-Control-Allow-Methods":
+                                "GET,POST,DELETE,OPTIONS",
 
-                    const marketCount =
-                        await marketCollection.countDocuments();
+                            "Access-Control-Allow-Headers":
+                                "Content-Type"
+                        }
+                    );
+
+                    response.end();
+
+                    return;
+                }
 
 
-                    sendJSON(
-                        res,
+                /* -----------------------------------------
+                   HOME
+                ----------------------------------------- */
+
+                if (
+                    request.method === "GET" &&
+                    pathname === "/"
+                ) {
+
+                    response.writeHead(
                         200,
                         {
-                            success: true,
+                            "Content-Type":
+                                "text/html; charset=utf-8"
+                        }
+                    );
 
-                            status: "online",
+                    response.end(html);
 
+                    return;
+                }
+
+
+                /* -----------------------------------------
+                   STATUS
+                ----------------------------------------- */
+
+                if (
+                    request.method === "GET" &&
+                    pathname === "/api/status"
+                ) {
+
+                    sendJSON(
+                        response,
+                        200,
+                        {
+                            status: "ok",
+                            application:
+                                "Smart Agri-Food Platform",
                             database:
-                                db
-                                    ? "connected"
-                                    : "not connected",
-
-                            databaseName:
-                                DB_NAME,
-
-                            farmers:
-                                farmerCount,
-
-                            marketPrices:
-                                marketCount
+                                db ? "connected" : "disconnected"
                         }
                     );
 
+                    return;
                 }
 
-                catch (error) {
 
-                    sendJSON(
-                        res,
-                        500,
-                        {
-                            success: false,
+                /* -----------------------------------------
+                   MARKET
+                ----------------------------------------- */
 
-                            status: "database error",
+                if (
+                    request.method === "GET" &&
+                    pathname === "/api/market"
+                ) {
 
-                            message:
-                                error.message
-                        }
-                    );
-
-                }
-
-                return;
-
-            }
-
-
-            /* ==========================================
-               MARKET API
-            ========================================== */
-
-            if (
-                req.method === "GET" &&
-                url.pathname === "/api/market"
-            ) {
-
-                try {
-
-                    const marketData =
+                    const market =
                         await marketCollection
-                            .find(
-                                {},
-                                {
-                                    projection: {
-                                        _id: 0
-                                    }
-                                }
-                            )
-                            .toArray();
-
-
-                    sendJSON(
-                        res,
-                        200,
-                        marketData
-                    );
-
-                }
-
-                catch (error) {
-
-                    console.error(error);
-
-                    sendJSON(
-                        res,
-                        500,
-                        {
-                            success: false,
-
-                            message:
-                                "Unable to load market data."
-                        }
-                    );
-
-                }
-
-                return;
-
-            }
-
-
-            /* ==========================================
-               GET FARMERS
-            ========================================== */
-
-            if (
-                req.method === "GET" &&
-                url.pathname === "/api/farmers"
-            ) {
-
-                try {
-
-                    const farmers =
-                        await farmersCollection
                             .find({})
                             .sort({
-                                registeredAt: -1
+                                crop: 1
                             })
                             .toArray();
 
 
                     sendJSON(
-                        res,
+                        response,
+                        200,
+                        market
+                    );
+
+                    return;
+                }
+
+
+                /* -----------------------------------------
+                   GET FARMERS
+                ----------------------------------------- */
+
+                if (
+                    request.method === "GET" &&
+                    pathname === "/api/farmers"
+                ) {
+
+                    const farmers =
+                        await farmersCollection
+                            .find({})
+                            .sort({
+                                createdAt: -1
+                            })
+                            .toArray();
+
+
+                    sendJSON(
+                        response,
                         200,
                         farmers
                     );
 
+                    return;
                 }
 
-                catch (error) {
 
-                    console.error(error);
+                /* -----------------------------------------
+                   CREATE FARMER
+                ----------------------------------------- */
 
-                    sendJSON(
-                        res,
-                        500,
-                        {
-                            success: false,
-
-                            message:
-                                "Unable to load farmers."
-                        }
-                    );
-
-                }
-
-                return;
-
-            }
-
-
-            /* ==========================================
-               REGISTER FARMER
-            ========================================== */
-
-            if (
-                req.method === "POST" &&
-                url.pathname === "/api/farmers"
-            ) {
-
-                try {
+                if (
+                    request.method === "POST" &&
+                    pathname === "/api/farmers"
+                ) {
 
                     const body =
-                        await getRequestBody(req);
+                        await getRequestBody(
+                            request
+                        );
 
 
-                    if (
-                        !validFarmer(body)
-                    ) {
+                    if (!validFarmer(body)) {
 
                         sendJSON(
-                            res,
+                            response,
                             400,
                             {
-                                success: false,
-
-                                message:
-                                    "Please provide all required fields."
+                                error:
+                                    "Please provide valid farmer details."
                             }
                         );
 
                         return;
-
-                    }
-
-
-                    const mobile =
-                        String(
-                            body.mobile
-                        ).trim();
-
-
-                    if (
-                        !/^[0-9+() -]{7,20}$/
-                            .test(mobile)
-                    ) {
-
-                        sendJSON(
-                            res,
-                            400,
-                            {
-                                success: false,
-
-                                message:
-                                    "Please provide a valid mobile number."
-                            }
-                        );
-
-                        return;
-
                     }
 
 
                     const farmer = {
 
                         name:
-                            String(
-                                body.name
-                            ).trim(),
+                            body.name.trim(),
 
                         mobile:
-                            mobile,
+                            body.mobile.trim(),
 
                         location:
-                            String(
-                                body.location
-                            ).trim(),
+                            body.location.trim(),
 
                         crop:
-                            String(
-                                body.crop ||
-                                "Not specified"
-                            ).trim(),
+                            body.crop.trim(),
 
-                        registeredAt:
-                            new Date().toISOString()
+                        createdAt:
+                            new Date()
 
                     };
 
 
+                    /*
+                     * Check for duplicate mobile number.
+                     */
+
+                    const existing =
+                        await farmersCollection.findOne({
+                            mobile:
+                                farmer.mobile
+                        });
+
+
+                    if (existing) {
+
+                        sendJSON(
+                            response,
+                            409,
+                            {
+                                error:
+                                    "A farmer with this mobile number is already registered."
+                            }
+                        );
+
+                        return;
+                    }
+
+
                     const result =
-                        await farmersCollection
-                            .insertOne(
-                                farmer
-                            );
-
-
-                    farmer._id =
-                        result.insertedId;
-
-
-                    const totalFarmers =
-                        await farmersCollection
-                            .countDocuments();
+                        await farmersCollection.insertOne(
+                            farmer
+                        );
 
 
                     sendJSON(
-                        res,
+                        response,
                         201,
                         {
-                            success: true,
-
-                            farmer: farmer,
-
-                            totalFarmers:
-                                totalFarmers
-                        }
-                    );
-
-                }
-
-                catch (error) {
-
-                    console.error(error);
-
-                    sendJSON(
-                        res,
-                        500,
-                        {
-                            success: false,
-
                             message:
-                                "Unable to register farmer."
+                                "Farmer registered successfully.",
+                            farmer: {
+                                _id:
+                                    result.insertedId,
+                                ...farmer
+                            }
                         }
                     );
 
+                    return;
                 }
 
-                return;
 
-            }
+                /* -----------------------------------------
+                   DELETE FARMER
+                ----------------------------------------- */
 
-
-            /* ==========================================
-               DELETE FARMER
-            ========================================== */
-
-            if (
-                req.method === "DELETE" &&
-                url.pathname.startsWith(
-                    "/api/farmers/"
-                )
-            ) {
-
-                try {
+                if (
+                    request.method === "DELETE" &&
+                    pathname.startsWith(
+                        "/api/farmers/"
+                    )
+                ) {
 
                     const id =
-                        url.pathname
-                            .split("/")
-                            .pop();
+                        pathname.split("/").pop();
 
 
                     if (
@@ -3250,135 +3774,153 @@ const server =
                     ) {
 
                         sendJSON(
-                            res,
+                            response,
                             400,
                             {
-                                success: false,
-
-                                message:
+                                error:
                                     "Invalid farmer ID."
                             }
                         );
 
                         return;
-
                     }
 
 
                     const result =
-                        await farmersCollection
-                            .deleteOne({
+                        await farmersCollection.deleteOne(
+                            {
                                 _id:
                                     new ObjectId(id)
-                            });
+                            }
+                        );
+
+
+                    if (
+                        result.deletedCount === 0
+                    ) {
+
+                        sendJSON(
+                            response,
+                            404,
+                            {
+                                error:
+                                    "Farmer not found."
+                            }
+                        );
+
+                        return;
+                    }
 
 
                     sendJSON(
-                        res,
+                        response,
                         200,
                         {
-                            success:
-                                result.deletedCount === 1,
-
                             message:
-                                result.deletedCount === 1
-                                    ? "Farmer deleted."
-                                    : "Farmer not found."
+                                "Farmer deleted successfully."
                         }
                     );
 
+                    return;
                 }
 
-                catch (error) {
 
-                    console.error(error);
+                /* -----------------------------------------
+                   AI ASSISTANT
+                ----------------------------------------- */
 
-                    sendJSON(
-                        res,
-                        500,
-                        {
-                            success: false,
-
-                            message:
-                                "Unable to delete farmer."
-                        }
-                    );
-
-                }
-
-                return;
-
-            }
-
-
-            /* ==========================================
-               AGRICULTURE ASSISTANT
-            ========================================== */
-
-            if (
-                req.method === "POST" &&
-                url.pathname === "/api/assistant"
-            ) {
-
-                try {
+                if (
+                    request.method === "POST" &&
+                    pathname === "/api/assistant"
+                ) {
 
                     const body =
-                        await getRequestBody(req);
+                        await getRequestBody(
+                            request
+                        );
+
+
+                    const question =
+                        typeof body.question === "string"
+                            ? body.question.trim()
+                            : "";
+
+
+                    if (
+                        !question ||
+                        question.length > 500
+                    ) {
+
+                        sendJSON(
+                            response,
+                            400,
+                            {
+                                error:
+                                    "Please provide a valid question."
+                            }
+                        );
+
+                        return;
+                    }
+
+
+                    const answer =
+                        assistantAnswer(
+                            question
+                        );
 
 
                     sendJSON(
-                        res,
+                        response,
                         200,
                         {
-                            answer:
-                                assistantAnswer(
-                                    body.question
-                                )
+                            question,
+                            answer
                         }
                     );
 
+                    return;
                 }
 
-                catch (error) {
 
-                    sendJSON(
-                        res,
-                        400,
-                        {
-                            answer:
-                                "Please enter a valid farming question."
-                        }
-                    );
+                /* -----------------------------------------
+                   NOT FOUND
+                ----------------------------------------- */
 
-                }
+                sendJSON(
+                    response,
+                    404,
+                    {
+                        error:
+                            "Route not found."
+                    }
+                );
 
-                return;
+            } catch (error) {
 
+                console.error(
+                    "Request error:",
+                    error
+                );
+
+
+                sendJSON(
+                    response,
+                    500,
+                    {
+                        error:
+                            "Internal server error."
+                    }
+                );
             }
-
-
-            /* ==========================================
-               404
-            ========================================== */
-
-            res.statusCode = 404;
-
-            res.setHeader(
-                "Content-Type",
-                "text/plain; charset=utf-8"
-            );
-
-            res.end(
-                "404 - Page Not Found"
-            );
 
         }
     );
 
 
-/* ======================================================
-   START SERVER + CONNECT MONGODB
-====================================================== */
+/* =========================================================
+   START SERVER
+========================================================= */
 
 async function startServer() {
 
@@ -3410,15 +3952,34 @@ async function startServer() {
             );
 
 
-        /* ==============================================
-           DATABASE INDEXES
-        ============================================== */
+        /*
+         * Indexes
+         */
 
-        await farmersCollection.createIndex(
-            {
-                mobile: 1
-            }
-        );
+        try {
+
+            await farmersCollection.createIndex(
+                {
+                    mobile: 1
+                },
+                {
+                    unique: true
+                }
+            );
+
+        } catch (error) {
+
+            /*
+             * Ignore duplicate index errors during
+             * repeated development deployments.
+             */
+
+            console.log(
+                "Farmer mobile index:",
+                error.message
+            );
+
+        }
 
 
         await marketCollection.createIndex(
@@ -3428,25 +3989,19 @@ async function startServer() {
         );
 
 
-        /* ==============================================
-           INSERT DEFAULT MARKET DATA
-           ONLY IF COLLECTION IS EMPTY
-        ============================================== */
+        /*
+         * Seed market data if empty.
+         */
 
         const marketCount =
-            await marketCollection
-                .countDocuments();
+            await marketCollection.countDocuments();
 
 
-        if (
-            marketCount === 0
-        ) {
+        if (marketCount === 0) {
 
-            await marketCollection
-                .insertMany(
-                    defaultMarketPrices
-                );
-
+            await marketCollection.insertMany(
+                defaultMarketData
+            );
 
             console.log(
                 "Default market data inserted."
@@ -3454,10 +4009,6 @@ async function startServer() {
 
         }
 
-
-        /* ==============================================
-           START SERVER
-        ============================================== */
 
         server.listen(
             port,
@@ -3478,11 +4029,14 @@ async function startServer() {
                 );
 
                 console.log(
-                    `Server running on port ${port}`
+                    "Server running on port " +
+                    port
                 );
 
                 console.log(
-                    `Local URL: http://127.0.0.1:${port}/`
+                    "Local URL: http://127.0.0.1:" +
+                    port +
+                    "/"
                 );
 
                 console.log(
@@ -3490,7 +4044,8 @@ async function startServer() {
                 );
 
                 console.log(
-                    `Database: ${DB_NAME}`
+                    "Database: " +
+                    DB_NAME
                 );
 
                 console.log(
@@ -3500,90 +4055,67 @@ async function startServer() {
             }
         );
 
+
+    } catch (error) {
+
+        console.error(
+            "MongoDB connection failed:"
+        );
+
+        console.error(
+            error
+        );
+
+
+        process.exit(
+            1
+        );
     }
-
-    catch (error) {
-
-        console.error("");
-        console.error(
-            "❌ MongoDB connection failed!"
-        );
-
-        console.error(
-            error.message
-        );
-
-        console.error("");
-
-        console.error(
-            "Check your MONGODB_URI in the .env file."
-        );
-
-        process.exit(1);
-
-    }
-
 }
 
 
-/* ======================================================
+/* =========================================================
    GRACEFUL SHUTDOWN
-====================================================== */
+========================================================= */
+
+async function shutdown() {
+
+    console.log(
+        "\nShutting down server..."
+    );
+
+
+    try {
+
+        await mongoClient.close();
+
+    } catch (error) {
+
+        console.error(
+            "MongoDB close error:",
+            error.message
+        );
+
+    }
+
+
+    process.exit(0);
+}
+
 
 process.on(
     "SIGINT",
-    async () => {
-
-        console.log(
-            "\nShutting down server..."
-        );
-
-        try {
-
-            await mongoClient.close();
-
-        }
-
-        catch (error) {
-
-            console.error(
-                error.message
-            );
-
-        }
-
-        process.exit(0);
-
-    }
+    shutdown
 );
-
 
 process.on(
     "SIGTERM",
-    async () => {
-
-        try {
-
-            await mongoClient.close();
-
-        }
-
-        catch (error) {
-
-            console.error(
-                error.message
-            );
-
-        }
-
-        process.exit(0);
-
-    }
+    shutdown
 );
 
 
-/* ======================================================
-   RUN APPLICATION
-====================================================== */
+/* =========================================================
+   START APPLICATION
+========================================================= */
 
 startServer();
